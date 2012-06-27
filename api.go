@@ -10,22 +10,14 @@ import (
 	"strings"
 )
 
-var (
-	hosts Hosts
-	password string
-)
-
-func serveAPI(addr string, _hosts Hosts, _password string) {
-	// I'm so sorry for this
-	hosts = _hosts
-	password = _password
-
+func serveAPI(addr string) {
 	r := mux.NewRouter()
 	apirouter := r.PathPrefix("/api").Subrouter()
 	adminrouter := r.PathPrefix("/admin").Subrouter()
 	apirouter.Path("/").Methods("GET").HandlerFunc(apiListHandler)
-	apirouter.Path("/{ip:[0-9.:%]+}").Methods("GET").HandlerFunc(apiListHostHandler)
-	apirouter.Path("/{ip:[0-9.:%]+}").Methods("POST").HandlerFunc(apiAddHostHandler)
+	apirouter.Path("/state").Methods("POST").HandlerFunc(apiStateHandler)
+	apirouter.Path("/{ip:[0-9.]+}").Methods("GET").HandlerFunc(apiListHostHandler)
+	apirouter.Path("/{ip:[0-9.]+}").Methods("POST").HandlerFunc(apiAddHostHandler)
 	adminrouter.Methods("GET").HandlerFunc(adminhandler)
 	e := http.ListenAndServe(addr, r)
 	if e != nil {
@@ -61,19 +53,46 @@ func apiListHostHandler(w http.ResponseWriter, r *http.Request) {
 
 func apiAddHostHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
-		w.WriteHeader(401)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	line, _, e := bufio.NewReader(r.Body).ReadLine()
 	if e != nil {
 		log.Printf("Received invalid request: %s", e)
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	hostnames := strings.Fields(string(line))
 	hosts.AddMultiple(vars["ip"], hostnames)
 	hosts.WriteToFile(HOSTSFILE)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func apiStateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	line, _, e := bufio.NewReader(r.Body).ReadLine()
+	if e != nil {
+		log.Printf("Received invalid request: %s", e)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	state := strings.TrimSpace(string(line))
+	switch state {
+	case "active":
+		hosts.WriteToFile(HOSTSFILE)
+		active = true
+	case "inactive":
+		restoreHostsFile(backup)
+		active = false
+	default:
+		log.Printf("Received invalid state: %s", state)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

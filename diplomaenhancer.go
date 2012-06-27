@@ -19,6 +19,13 @@ var (
 	help = flag.Bool("help", false, "Show this help")
 )
 
+var (
+	hosts    Hosts
+	password string
+	backup   string
+	active   bool = false
+)
+
 func main() {
 	flag.Parse()
 
@@ -28,7 +35,8 @@ func main() {
 		return
 	}
 
-	backup, e := backupHostsFile()
+	var e error
+	backup, e = backupHostsFile()
 	if e != nil {
 		log.Fatalf("Could not manipulate hosts file %s: %s", HOSTSFILE, e)
 	}
@@ -40,14 +48,14 @@ func main() {
 		os.Exit(0)
 	}()
 
-	hosts, e := ParseString(backup)
+	hosts, e = ParseString(backup)
 	if e != nil {
 		log.Fatalf("Could not parse hosts file %s: %s", HOSTSFILE, e)
 	}
-	hosts.WriteToFile(HOSTSFILE)
 
 	log.Printf("Starting server...")
-	serveAPI(*api, hosts, PASSWORD)
+	password = PASSWORD
+	serveAPI(*api)
 }
 
 func backupHostsFile() (string, error) {
