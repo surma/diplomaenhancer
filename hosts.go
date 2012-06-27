@@ -17,6 +17,11 @@ func (h Hosts) Add(ip, hostname string) {
 	h[ip] = append(h[ip], hostname)
 }
 
+func (h Hosts) HasIP(ip string) bool {
+	_, ok := h[ip]
+	return ok
+}
+
 func (h Hosts) Remove(ip, hostname string) error {
 	if _, ok := h[ip]; !ok {
 		return fmt.Errorf("Unknown ip")
