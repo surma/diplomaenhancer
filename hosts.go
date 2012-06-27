@@ -17,6 +17,25 @@ func (h Hosts) Add(ip, hostname string) {
 	h[ip] = append(h[ip], hostname)
 }
 
+func (h Hosts) Remove(ip, hostname string) error {
+	if _, ok := h[ip]; !ok {
+		return fmt.Errorf("Unknown ip")
+	}
+	newhostnames := make([]string, 0, 2)
+	for _, ohostname := range h[ip] {
+		if hostname == ohostname {
+			continue
+		}
+		newhostnames = append(newhostnames, ohostname)
+	}
+	if len(newhostnames) <= 0 {
+		delete(h, ip)
+	} else {
+		h[ip] = newhostnames
+	}
+	return nil
+}
+
 func (h Hosts) AddMultiple(ip string, hostnames []string) {
 	if _, ok := h[ip]; !ok {
 		h[ip] = make([]string, 0, 2)

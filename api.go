@@ -18,16 +18,17 @@ func serveAPI(addr string) {
 	apirouter.Path("/state").Methods("POST").HandlerFunc(apiStateHandler)
 	apirouter.Path("/{ip:[0-9.]+}").Methods("GET").HandlerFunc(apiListHostHandler)
 	apirouter.Path("/{ip:[0-9.]+}").Methods("POST").HandlerFunc(apiAddHostHandler)
+	apirouter.Path("/{ip:[0-9.]+}").Methods("DELETE").HandlerFunc(apiDeleteHostHandler)
 	e := http.ListenAndServe(addr, r)
 	if e != nil {
-		log.Fatalf("Could not bind http server: %s", e)
+		log.Fatalf("serveAPI: Could not bind http server: %s", e)
 	}
 }
 
 func apiListHandler(w http.ResponseWriter, r *http.Request) {
 	d, e := json.Marshal(hosts)
 	if e != nil {
-		log.Fatalf("Could not marshal hosts: %s", e)
+		log.Fatalf("List: Could not marshal hosts: %s", e)
 	}
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(d)))
 	w.WriteHeader(http.StatusOK)
@@ -43,14 +44,14 @@ func apiListHostHandler(w http.ResponseWriter, r *http.Request) {
 
 	d, e := json.Marshal(hosts[vars["ip"]])
 	if e != nil {
-		log.Fatalf("Could not marshal hosts: %s", e)
+		log.Fatalf("ListHost: Could not marshal hosts: %s", e)
 	}
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(d)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(d)
 }
 
-func apiAddHostHandler(w http.ResponseWriter, r *http.Request) {
+func apiDeleteHostHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
 		log.Printf("Received invalid password")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -59,25 +60,58 @@ func apiAddHostHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	line, _, e := bufio.NewReader(r.Body).ReadLine()
 	if e != nil {
-		log.Printf("Received invalid request: %s", e)
+		log.Printf("DeleteHost: Received invalid request: %s", e)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	hostnames := strings.Fields(string(line))
+	if len(hostnames) > 1 {
+		log.Printf("DeleteHost: Received multiple fields")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	e = hosts.Remove(vars["ip"], hostnames[0])
+	if e != nil {
+		log.Printf("DeleteHost: Could not remove host: %s", e)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if active {
+		hosts.WriteToFile(HOSTSFILE)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func apiAddHostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
+		log.Printf("AddHost: Received invalid password")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	line, _, e := bufio.NewReader(r.Body).ReadLine()
+	if e != nil {
+		log.Printf("AddHost: Received invalid request: %s", e)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	hostnames := strings.Fields(string(line))
 	hosts.AddMultiple(vars["ip"], hostnames)
-	hosts.WriteToFile(HOSTSFILE)
+	if active {
+		hosts.WriteToFile(HOSTSFILE)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func apiStateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
-		log.Printf("Received invalid password")
+		log.Printf("State: Received invalid password")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	line, _, e := bufio.NewReader(r.Body).ReadLine()
 	if e != nil {
-		log.Printf("Received invalid request: %s", e)
+		log.Printf("State: Received invalid request: %s", e)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -90,7 +124,7 @@ func apiStateHandler(w http.ResponseWriter, r *http.Request) {
 		restoreHostsFile(backup)
 		active = false
 	default:
-		log.Printf("Received invalid state: %s", state)
+		log.Printf("State: Received invalid state: %s", state)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
