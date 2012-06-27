@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var (
@@ -26,7 +28,13 @@ func main() {
 	if e != nil {
 		log.Fatalf("Could not manipulate hosts file %s: %s", HOSTSFILE, e)
 	}
-	defer restoreHostsFile(backup)
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
+		<-c
+		restoreHostsFile(backup)
+		os.Exit(0)
+	}()
 
 	hosts, e := ParseString(backup)
 	if e != nil {
