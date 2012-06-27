@@ -13,12 +13,11 @@ import (
 func serveAPI(addr string) {
 	r := mux.NewRouter()
 	apirouter := r.PathPrefix("/api").Subrouter()
-	adminrouter := r.PathPrefix("/admin").Subrouter()
+	r.PathPrefix("/admin").Handler(http.StripPrefix("/admin", http.FileServer(http.Dir("./admin"))))
 	apirouter.Path("/").Methods("GET").HandlerFunc(apiListHandler)
 	apirouter.Path("/state").Methods("POST").HandlerFunc(apiStateHandler)
 	apirouter.Path("/{ip:[0-9.]+}").Methods("GET").HandlerFunc(apiListHostHandler)
 	apirouter.Path("/{ip:[0-9.]+}").Methods("POST").HandlerFunc(apiAddHostHandler)
-	adminrouter.Methods("GET").HandlerFunc(adminhandler)
 	e := http.ListenAndServe(addr, r)
 	if e != nil {
 		log.Fatalf("Could not bind http server: %s", e)
@@ -94,8 +93,4 @@ func apiStateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func adminhandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "ADMIN")
 }
