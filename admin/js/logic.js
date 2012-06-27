@@ -49,13 +49,13 @@ define(function() {
 		},
 		showSuccess: function(msg) {
 			var $success = $($successtpl.clone().removeClass('template'));
-			$success.text(msg);
+			$($success.find('.text')).text(msg);
 			$success.appendTo($notificationarea);
 			timeToLive($success, 5);
 		},
 		showError: function(msg) {
 			var $error = $($errortpl.clone().removeClass('template'));
-			$error.text(msg);
+			$($error.find('.text')).text(msg);
 			$error.appendTo($notificationarea);
 			timeToLive($error, 5);
 		},
