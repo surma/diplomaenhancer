@@ -12,11 +12,13 @@ import (
 
 var (
 	hosts Hosts
+	password string
 )
 
-func serveAPI(addr string, _hosts Hosts) {
+func serveAPI(addr string, _hosts Hosts, _password string) {
 	// I'm so sorry for this
 	hosts = _hosts
+	password = _password
 
 	r := mux.NewRouter()
 	apirouter := r.PathPrefix("/api").Subrouter()
@@ -58,6 +60,10 @@ func apiListHostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiAddHostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
+		w.WriteHeader(401)
+		return
+	}
 	vars := mux.Vars(r)
 	line, _, e := bufio.NewReader(r.Body).ReadLine()
 	if e != nil {

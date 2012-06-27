@@ -10,6 +10,10 @@ import (
 	"syscall"
 )
 
+const (
+	PASSWORD = "apassword"
+)
+
 var (
 	api  = flag.String("api", "0.0.0.0:13370", "Address to bind the API interface to")
 	help = flag.Bool("help", false, "Show this help")
@@ -43,7 +47,7 @@ func main() {
 	hosts.WriteToFile(HOSTSFILE)
 
 	log.Printf("Starting server...")
-	serveAPI(*api, hosts)
+	serveAPI(*api, hosts, PASSWORD)
 }
 
 func backupHostsFile() (string, error) {
