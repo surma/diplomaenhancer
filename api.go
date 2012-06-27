@@ -52,6 +52,7 @@ func apiListHostHandler(w http.ResponseWriter, r *http.Request) {
 
 func apiAddHostHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
+		log.Printf("Received invalid password")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -70,6 +71,7 @@ func apiAddHostHandler(w http.ResponseWriter, r *http.Request) {
 
 func apiStateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("X-DiplomaEnhancer-Token") != password {
+		log.Printf("Received invalid password")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}

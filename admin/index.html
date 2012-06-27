@@ -13,6 +13,9 @@
 			body {
 				padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
 			}
+			.template {
+				display: none;
+			}
 		</style>
 		<link href="assets/css/bootstrap-responsive.css" rel="stylesheet">
 
@@ -60,7 +63,7 @@
 		<div class="container">
 			<div class="row">
 				<div class="span4">
-					<form class="well">
+					<form id="addform" class="well">
 						<h3 class="lead">Block URL</h3>
 						<div class="input-append">
 							<div class="control-group">
@@ -71,9 +74,15 @@
 							</div>
 						</div>
 					</form>
+					<div id="notificationarea">
+						<div class="alert alert-error template">
+						</div>
+						<div class="alert alert-success template">
+						</div>
+					</div>
 				</div>
 				<div class="span8">
-					<table class="table table-bordered table-striped table-condensed">
+					<table class="table table-striped table-condensed" id="table">
 						<thead>
 							<tr>
 								<th>URL</th>
@@ -81,13 +90,9 @@
 							</tr>
 						</thead>
 						<tbody>
-							<tr>
-								<td>www.modelkartei.de</td>
-								<td><button class="btn btn-danger"><i class="icon-remove icon-white"></i></td>
-							</tr>
-							<tr>
-								<td>www.facebook.com</td>
-								<td><button class="btn btn-danger"><i class="icon-remove icon-white"></i></td>
+							<tr class="template">
+								<td class="url">www.facebook.com</td>
+								<td><button class="btn btn-danger btn-mini"><i class="icon-remove icon-white"></i></td>
 							</tr>
 						</tbody>
 					</table>
@@ -111,6 +116,6 @@
 		<script src="assets/js/bootstrap-collapse.js"></script>
 		<script src="assets/js/bootstrap-carousel.js"></script>
 		<script src="assets/js/bootstrap-typeahead.js"></script>
-		<script src="js/logic.js"></script>
+		<script data-main="js/main" src="js/require.js"></script>
 	</body>
 </html>
