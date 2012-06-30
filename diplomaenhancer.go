@@ -39,8 +39,14 @@ func main() {
 		log.Fatalf("Could not manipulate hosts file %s: %s", HOSTFILE, e)
 	}
 
+	e = readBlocklist()
+	if e != nil {
+		log.Printf("Could not blocklist file: %s. Creating...", e)
+	}
+
 	log.Printf("Starting server...")
 	password = PASSWORD
+	go serveBlockpage()
 	serveAPI(*api)
 }
 

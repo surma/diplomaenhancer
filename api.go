@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/surma/gouuid"
+	"github.com/surma/goappdata"
 	"log"
 	"net/http"
 	"os"
@@ -152,10 +153,54 @@ func update() {
 		newhostfile = append(newhostfile, block)
 	}
 
-	f, e := os.Create(HOSTFILE)
+	e := saveBlocklist()
 	if e != nil {
-		log.Fatalf("Could not open hostfile %s: %s", HOSTFILE, e)
+		log.Printf("Could not save to blocklist file: %s", e)
+	}
+	e = writeHostfile(hostfile.Hostfile(newhostfile))
+	if e != nil {
+		log.Fatalf("Could not write host file: %s")
+	}
+}
+
+func saveBlocklist() error {
+	blocklistfile, e := goappdata.CreatePath("diplomaenhancer")
+	if e != nil {
+		return e
+	}
+	blocklistfile += "/blocklist"
+	f, e := os.Create(blocklistfile)
+	if e != nil {
+		return e
 	}
 	defer f.Close()
-	f.Write([]byte(hostfile.Hostfile(newhostfile).String()))
+	enc := json.NewEncoder(f)
+	e = enc.Encode(blocklist)
+	return e
+}
+
+func readBlocklist() error {
+	blocklistfile, e := goappdata.CreatePath("diplomaenhancer")
+	if e != nil {
+		return e
+	}
+	blocklistfile += "/blocklist"
+	f, e := os.Open(blocklistfile)
+	if e != nil {
+		return e
+	}
+	defer f.Close()
+	dec := json.NewDecoder(f)
+	e = dec.Decode(&blocklist)
+	return e
+}
+
+func writeHostfile(hostfile hostfile.Hostfile) error {
+	f, e := os.Create(HOSTFILE)
+	if e != nil {
+		return e
+	}
+	defer f.Close()
+	_, e = f.Write([]byte(hostfile.String()))
+	return e
 }
