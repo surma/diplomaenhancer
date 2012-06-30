@@ -1,4 +1,4 @@
-package main
+package hostfile
 
 const (
 	HOSTSFILE = "/etc/hosts"

@@ -2,43 +2,65 @@ package hostfile
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"strings"
+)
+
+var (
+	parserError error
 )
 
 func New() Hostfile {
 	return []Block{}
 }
 
-type parserState func(p parser) parserState
+type parserState func(p *parser, line string) parserState
 
 type parser struct {
-	currentBlock Block
+	blocks []Block
 	line string
-	reader bufio.Reader
+	hasBufferedLine bool
+	reader *bufio.Reader
+}
+
+func (p *parser) NewBlock() {
+	if p.blocks == nil {
+		p.blocks = []Block{}
+	}
+	p.blocks = append(p.blocks, Block{})
+}
+
+func (p *parser) CurrentBlock() *Block {
+	if p.blocks == nil || len(p.blocks) == 0 {
+		panic("Blocklist is empty")
+	}
+	return &p.blocks[len(p.blocks)-1]
 }
 
 func (p *parser) NextLine() (string, error) {
-	if p.line != nil {
+	if p.hasBufferedLine {
+		p.hasBufferedLine = false
 		return p.line, nil
 	}
 	return p.readLine()
 }
 
 func (p *parser) readLine() (string, error) {
-	bline, prefix, e := b.ReadLine();
+	bline, prefix, e := p.reader.ReadLine();
 	for prefix && e == nil {
 		var blinerest []byte
-		blinerest, prefix, e = b.ReadLine()
+		blinerest, prefix, e = p.reader.ReadLine()
 		bline = append(bline, blinerest...)
 	}
 	return string(bline), e
 }
 
 func (p *parser) Undo(line string) {
-	if p.line != nil {
+	if p.hasBufferedLine {
 		panic("multiple undos")
 	}
+	p.hasBufferedLine = true
 	p.line = line
 }
 
@@ -47,41 +69,79 @@ func ParseString(content string) (Hostfile, error) {
 }
 
 func Parse(r io.Reader) (Hostfile, error) {
-	h := New()
 	p := &parser{
 		reader: bufio.NewReader(r),
 	}
-
-	return h, nil
-}
-
-func readEmptyLine(line string) parserState {
-	switch {
-		case e == io.EOF:
-			return endState
-		case e != nil:
-			errorStateError = e
-			return errorState
+	state := emptyLineState
+	for {
+		line, e := p.NextLine()
+		if e == io.EOF {
+			break;
 		}
-		case strings.TrimSpace(line) == "":
-
+		if e != nil {
+			return nil, e
+		}
+		line = strings.TrimSpace(line)
+		state = state(p, line)
+		if state == nil {
+			return nil, parserError
+		}
 	}
-	p.Undo(line)
-	return readComment
+	return Hostfile(p.blocks), nil
 }
 
-func readComment(p parser) parserState {
-	for line, e := p.NextLine(); e == nil; line, e = p.NextLine() {
-
+// States
+func emptyLineState(p *parser, line string) parserState {
+	switch {
+	case line == "":
+		return emptyLineState
+	case strings.HasPrefix(line, "#"):
+		p.Undo(line)
+		p.NewBlock()
+		return commentLineState
+	default:
+		p.Undo(line)
+		p.NewBlock()
+		return hostLineState
 	}
-	if e != nil {
-		errorStateError = e
-		return errorState
-	}
-	p.Undo(line)
+	return nil
 }
 
-var errorStateError error
-func errorState(p parser) parserState {}
+func commentLineState(p *parser, line string) parserState {
+	switch {
+	case line == "":
+		return emptyLineState
+	case strings.HasPrefix(line, "#"):
+		block := p.CurrentBlock()
+		block.Comment = append(block.Comment, line[1:])
+		return commentLineState
+	default:
+		p.Undo(line)
+		return hostLineState
+	}
+	return nil
+}
 
-func endState(p parser) parserState {}
+func hostLineState(p *parser, line string) parserState {
+	switch {
+	case line == "":
+		return emptyLineState
+	case strings.HasPrefix(line, "#"):
+		p.Undo(line)
+		p.NewBlock()
+		return commentLineState
+	default:
+		block := p.CurrentBlock()
+		fields := strings.Fields(line)
+		if len(fields) <= 1 {
+			parserError = fmt.Errorf("Invalid host line: %s", line)
+			return nil
+		}
+		entry := Entry{}
+		entry.IP = fields[0]
+		entry.Hostnames = fields[1:]
+		block.Entries = append(block.Entries, entry)
+		return hostLineState
+	}
+	return nil
+}
