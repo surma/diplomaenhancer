@@ -1,6 +1,7 @@
 package hostfile
 
 import (
+	"regexp"
 	"strings"
 )
 
@@ -12,7 +13,7 @@ type Block struct {
 }
 
 type Entry struct {
-	IP string
+	IP        string
 	Hostnames []string
 }
 
@@ -23,12 +24,19 @@ func (h Hostfile) String() string {
 		buf += sep
 		sep = "\n"
 		if len(block.Comment) > 0 {
-			buf += "#"+strings.Join(block.Comment, "\n#")+"\n"
+			buf += "#" + strings.Join(block.Comment, "\n#") + "\n"
 		}
 		for _, entry := range block.Entries {
-			buf += entry.IP + " " + strings.Join(entry.Hostnames, " ")+"\n"
+			buf += entry.IP + " " + strings.Join(entry.Hostnames, " ") + "\n"
 		}
 	}
 	return buf
 }
 
+var (
+	ipMatcher = regexp.MustCompile("^([0-9]{1,3}\\.){3}[0-9]{1,3}$")
+)
+
+func (t Entry) Valid() bool {
+	return ipMatcher.MatchString(t.IP) && len(t.Hostnames) >= 1 && len(t.Hostnames[0]) >= 1
+}

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"./hostfile"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -20,10 +20,9 @@ var (
 )
 
 var (
-	hosts    Hosts
-	password string
-	backup   string
-	active   bool = false
+	originalhostfile hostfile.Hostfile
+	password         string
+	active           bool = false
 )
 
 func main() {
@@ -35,22 +34,9 @@ func main() {
 		return
 	}
 
-	var e error
-	backup, e = backupHostsFile()
+	e := readHostfile()
 	if e != nil {
-		log.Fatalf("Could not manipulate hosts file %s: %s", HOSTSFILE, e)
-	}
-	go func() {
-		c := make(chan os.Signal)
-		signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
-		<-c
-		restoreHostsFile(backup)
-		os.Exit(0)
-	}()
-
-	hosts, e = ParseString(backup)
-	if e != nil {
-		log.Fatalf("Could not parse hosts file %s: %s", HOSTSFILE, e)
+		log.Fatalf("Could not manipulate hosts file %s: %s", HOSTFILE, e)
 	}
 
 	log.Printf("Starting server...")
@@ -58,23 +44,31 @@ func main() {
 	serveAPI(*api)
 }
 
-func backupHostsFile() (string, error) {
+func readHostfile() error {
 	// Check for write permissions
-	f, e := os.OpenFile(HOSTSFILE, os.O_WRONLY, os.FileMode(0644))
+	f, e := os.OpenFile(HOSTFILE, os.O_RDWR, os.FileMode(0644))
 	if e != nil {
-		return "", e
-	}
-	f.Close()
-
-	data, e := ioutil.ReadFile(HOSTSFILE)
-	return string(data), e
-}
-
-func restoreHostsFile(content string) {
-	f, e := os.Create(HOSTSFILE)
-	if e != nil {
-		log.Fatalf("Could not restore host file %s: %s", HOSTSFILE, e)
+		return e
 	}
 	defer f.Close()
-	f.Write([]byte(content))
+
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
+		<-c
+		restoreHostfile()
+		os.Exit(0)
+	}()
+
+	originalhostfile, e = hostfile.Parse(f)
+	return e
+}
+
+func restoreHostfile() {
+	f, e := os.Create(HOSTFILE)
+	if e != nil {
+		log.Fatalf("Could not restore host file %s: %s", HOSTFILE, e)
+	}
+	defer f.Close()
+	f.Write([]byte(originalhostfile.String()))
 }

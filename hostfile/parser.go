@@ -18,10 +18,10 @@ func New() Hostfile {
 type parserState func(p *parser, line string) parserState
 
 type parser struct {
-	blocks []Block
-	line string
+	blocks          []Block
+	line            string
 	hasBufferedLine bool
-	reader *bufio.Reader
+	reader          *bufio.Reader
 }
 
 func (p *parser) NewBlock() {
@@ -47,7 +47,7 @@ func (p *parser) NextLine() (string, error) {
 }
 
 func (p *parser) readLine() (string, error) {
-	bline, prefix, e := p.reader.ReadLine();
+	bline, prefix, e := p.reader.ReadLine()
 	for prefix && e == nil {
 		var blinerest []byte
 		blinerest, prefix, e = p.reader.ReadLine()
@@ -76,7 +76,7 @@ func Parse(r io.Reader) (Hostfile, error) {
 	for {
 		line, e := p.NextLine()
 		if e == io.EOF {
-			break;
+			break
 		}
 		if e != nil {
 			return nil, e

@@ -54,10 +54,27 @@ define(function() {
 			timeToLive($success, 5);
 		},
 		showError: function(msg) {
+			if(msg == null || msg == undefined) {
+				msg = 'Some error occured';
+			}
 			var $error = $($errortpl.clone().removeClass('template'));
 			$($error.find('.text')).text(msg);
 			$error.appendTo($notificationarea);
 			timeToLive($error, 5);
+		},
+		showMessage: function(msg) {
+			if(msg instanceof Array) {
+				for(m in msg) {
+					this.showMessage(m);
+				}
+				return;
+			}
+
+			if(msg.type == 'success') {
+				this.showSuccess(msg.text);
+			} else {
+				this.showError(msg.text);
+			}
 		},
 		clearTable: function() {
 			$table.find('tbody tr').each(function() {
@@ -66,21 +83,17 @@ define(function() {
 				}
 			});
 		},
-		addRow: function(url) {
-			var $row = $($rowtpl.clone().removeClass('template'));
+		addRow: function(uuid, url) {
+			var $row = $($rowtpl.clone().removeClass('template').attr('id', uuid));
 			$row.find('button').click(function(){
 				var password = $password.attr('value');
-				this.unblock(url, password);
+				this.unblock(uuid, password);
 			}.bind(this));
 			$row.children('.url').text(url);
 			$row.appendTo($body);
 		},
-		removeRow: function(url) {
-			$($body.find('tr')).each(function() {
-				if($($(this).find('.url')).text() == url) {
-					$(this).remove();
-				}
-			});
+		removeRow: function(uuid) {
+			$("#"+uuid).remove();
 		},
 		updateTable: function() {
 			this.clearTable();
@@ -88,59 +101,76 @@ define(function() {
 				'url': '/api/',
 				'dataType': 'json',
 				'success': function(data) {
-					for(var ip in data) {
-						for(var urlidx in data[ip]) {
-							var url = data[ip][urlidx]
-							if(url.match(/host$/)) {
-								continue;
-							}
-							this.addRow(url);
+					for(var uuid in data) {
+						for(var urlidx in data[uuid].Hostnames) {
+							var url = data[uuid].Hostnames[urlidx];
+							this.addRow(uuid, url);
 						}
 					}
 				}.bind(this),
 				'error': function() {
-					this.showError('Could not load table');
+					this.showMessage({
+						'type': 'error',
+						'text': 'Could not load table',
+					});
 				}.bind(this),
 			});
 		},
-		block: function(url, password) {
+		block: function(url) {
+			var entry = {
+				IP: '127.0.0.1',
+				Hostnames: [
+					url,
+				],
+			}
 			$.ajax({
-				'url': '/api/127.0.0.1',
-				'data': url,
+				'url': '/api/',
+				'data': JSON.stringify(entry),
 				'type': 'POST',
-				'headers': {
-					'X-DiplomaEnhancer-Token': password,
-				},
 				'statusCode': {
-					401: function() {
-						this.showError('Wrong password');
-					}.bind(this),
-					204: function() {
-						this.addRow(url);
-						this.showSuccess('Blocked '+url);
+					201: function(uuid) {
+						this.addRow(uuid, url);
+						this.showMessage({
+							'type': 'success',
+							'text': 'Blocked '+url,
+						});
 						$newurl.attr('value', '');
 					}.bind(this),
 				},
+				'error': function() {
+					this.showMessage({
+						'type': 'error',
+					})
+				}
 			});
 		},
-		unblock: function(url, password) {
+		unblock: function(uuid, password) {
 			$.ajax({
-				'url': '/api/127.0.0.1',
-				'data': url,
+				'url': '/api/'+uuid,
 				'type': 'DELETE',
 				'headers': {
 					'X-DiplomaEnhancer-Token': password,
 				},
 				'statusCode': {
 					400: function() {
-						this.showError('Invalid operation');
+						this.showMessage({
+							'type': 'error',
+							'text': 'Invalid request',
+						});
 					}.bind(this),
 					401: function() {
-						this.showError('Wrong password');
+						this.showMessage({
+							'type': 'error',
+							'text': 'Wrong password',
+						});
+						return true;
 					}.bind(this),
 					204: function() {
-						this.removeRow(url);
-						this.showSuccess('Unblocked '+url);
+						this.showMessage({
+							'type': 'success',
+							'text': 'Unblocked',
+						});
+						this.removeRow(uuid);
 					}.bind(this),
 				},
 			});

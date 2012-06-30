@@ -1,20 +1,20 @@
 package hostfile
 
 import (
-	"testing"
 	"io/ioutil"
 	"os"
+	"testing"
 )
 
 func TestParser(t *testing.T) {
 	testfile := "testdata/hosts1"
-	in, e := os.Open(testfile+".txt")
+	in, e := os.Open(testfile + ".txt")
 	if e != nil {
 		t.Fatalf("Could not open testfile %s: %s", testfile, e)
 	}
 	defer in.Close()
 
-	resultf, e := os.Open(testfile+"_parsed.txt")
+	resultf, e := os.Open(testfile + "_parsed.txt")
 	if e != nil {
 		t.Fatalf("Could not open testfile %s: %s", testfile, e)
 	}
@@ -34,10 +34,9 @@ func TestParser(t *testing.T) {
 	}
 }
 
-
 func TestFailure(t *testing.T) {
 	testfile := "testdata/hosts2"
-	in, e := os.Open(testfile+".txt")
+	in, e := os.Open(testfile + ".txt")
 	if e != nil {
 		t.Fatalf("Could not open testfile %s: %s", testfile, e)
 	}
