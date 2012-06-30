@@ -11,8 +11,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
-	"time"
 )
 
 var (
@@ -29,21 +29,13 @@ func conditionalFailf(w http.ResponseWriter, cond bool, code int, sfmt string, v
 }
 
 func serveAPI(addr string) {
-
-	ticker := time.NewTicker(1*time.Second)
-	go func() {
-		for _ = range ticker.C {
-			update()
-		}
-	}()
-
 	r := mux.NewRouter()
 	apirouter := r.PathPrefix("/api").Subrouter()
 	apirouter.Path("/").Methods("GET").HandlerFunc(apiListHandler)
-	apirouter.Path("/").Methods("POST").HandlerFunc(apiAddHandler)
-	apirouter.Path("/state").Methods("POST").HandlerFunc(authenticationWrapper(apiStateHandler))
+	apirouter.Path("/").Methods("POST").HandlerFunc(updateWrapper(apiAddHandler))
+	apirouter.Path("/state").Methods("POST").HandlerFunc(authenticationWrapper(updateWrapper(apiStateHandler)))
 	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("GET").HandlerFunc(apiListSingleHandler)
-	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("DELETE").HandlerFunc(authenticationWrapper(apiDeleteSingleHandler))
+	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("DELETE").HandlerFunc(authenticationWrapper(updateWrapper(apiDeleteSingleHandler)))
 
 	r.PathPrefix("/admin").Handler(http.StripPrefix("/admin", http.FileServer(http.Dir("./admin"))))
 
@@ -139,27 +131,34 @@ func authenticationWrapper(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func update() {
-	newhostfile := make([]hostfile.Block, len(originalhostfile))
-	copy(newhostfile, originalhostfile)
-	if active {
-		block := hostfile.Block {
-			Comment: []string{"DiplomaEnhancer:"},
-			Entries: make([]hostfile.Entry, 0, len(blocklist)),
+func updateWrapper(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h(w, r)
+		newhostfile := make([]hostfile.Block, len(originalhostfile))
+		copy(newhostfile, originalhostfile)
+		if active {
+			block := hostfile.Block {
+				Comment: []string{"DiplomaEnhancer:"},
+				Entries: make([]hostfile.Entry, 0, len(blocklist)),
+			}
+			for _, entry := range blocklist {
+				block.Entries = append(block.Entries, entry)
+			}
+			newhostfile = append(newhostfile, block)
 		}
-		for _, entry := range blocklist {
-			block.Entries = append(block.Entries, entry)
-		}
-		newhostfile = append(newhostfile, block)
-	}
 
-	e := saveBlocklist()
-	if e != nil {
-		log.Printf("Could not save to blocklist file: %s", e)
-	}
-	e = writeHostfile(hostfile.Hostfile(newhostfile))
-	if e != nil {
-		log.Fatalf("Could not write host file: %s")
+		e := saveBlocklist()
+		if e != nil {
+			log.Printf("Could not save to blocklist file: %s", e)
+		}
+		e = writeHostfile(hostfile.Hostfile(newhostfile))
+		if e != nil {
+			log.Fatalf("Could not write host file: %s")
+		}
+		e = exec.Command(FLUSH_CMD[0], FLUSH_CMD[1:]...).Start()
+		if e != nil {
+			log.Printf("Could not flush dns cache: %s", e)
+		}
 	}
 }
 
