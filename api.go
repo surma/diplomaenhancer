@@ -30,6 +30,7 @@ func conditionalFailf(w http.ResponseWriter, cond bool, code int, sfmt string, v
 
 func serveAPI(addr string) {
 	r := mux.NewRouter()
+	r.Path("/").Handler(http.RedirectHandler("/admin/", http.StatusMovedPermanently))
 	apirouter := r.PathPrefix("/api").Subrouter()
 	apirouter.Path("/").Methods("GET").HandlerFunc(apiListHandler)
 	apirouter.Path("/").Methods("POST").HandlerFunc(updateWrapper(apiAddHandler))
@@ -38,7 +39,7 @@ func serveAPI(addr string) {
 	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("GET").HandlerFunc(apiListSingleHandler)
 	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("DELETE").HandlerFunc(authenticationWrapper(updateWrapper(apiDeleteSingleHandler)))
 
-	r.PathPrefix("/admin").Handler(http.StripPrefix("/admin", http.FileServer(http.Dir("./admin"))))
+	r.PathPrefix("/admin/").Handler(http.StripPrefix("/admin", http.FileServer(http.Dir("./admin"))))
 
 	e := http.ListenAndServe(addr, r)
 	if e != nil {
