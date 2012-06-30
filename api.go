@@ -9,7 +9,9 @@ import (
 	"github.com/surma/gouuid"
 	"log"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -26,14 +28,24 @@ func conditionalFailf(w http.ResponseWriter, cond bool, code int, sfmt string, v
 }
 
 func serveAPI(addr string) {
+
+	ticker := time.NewTicker(1*time.Second)
+	go func() {
+		for _ = range ticker.C {
+			update()
+		}
+	}()
+
 	r := mux.NewRouter()
 	apirouter := r.PathPrefix("/api").Subrouter()
-	r.PathPrefix("/admin").Handler(http.StripPrefix("/admin", http.FileServer(http.Dir("./admin"))))
 	apirouter.Path("/").Methods("GET").HandlerFunc(apiListHandler)
 	apirouter.Path("/").Methods("POST").HandlerFunc(apiAddHandler)
 	apirouter.Path("/state").Methods("POST").HandlerFunc(authenticationWrapper(apiStateHandler))
 	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("GET").HandlerFunc(apiListSingleHandler)
 	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("DELETE").HandlerFunc(authenticationWrapper(apiDeleteSingleHandler))
+
+	r.PathPrefix("/admin").Handler(http.StripPrefix("/admin", http.FileServer(http.Dir("./admin"))))
+
 	e := http.ListenAndServe(addr, r)
 	if e != nil {
 		log.Fatalf("serveAPI: Could not bind http server: %s", e)
@@ -124,4 +136,26 @@ func authenticationWrapper(h http.HandlerFunc) http.HandlerFunc {
 		}
 		h(w, r)
 	}
+}
+
+func update() {
+	newhostfile := make([]hostfile.Block, len(originalhostfile))
+	copy(newhostfile, originalhostfile)
+	if active {
+		block := hostfile.Block {
+			Comment: []string{"DiplomaEnhancer:"},
+			Entries: make([]hostfile.Entry, 0, len(blocklist)),
+		}
+		for _, entry := range blocklist {
+			block.Entries = append(block.Entries, entry)
+		}
+		newhostfile = append(newhostfile, block)
+	}
+
+	f, e := os.Create(HOSTFILE)
+	if e != nil {
+		log.Fatalf("Could not open hostfile %s: %s", HOSTFILE, e)
+	}
+	defer f.Close()
+	f.Write([]byte(hostfile.Hostfile(newhostfile).String()))
 }

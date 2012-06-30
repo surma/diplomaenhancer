@@ -64,8 +64,8 @@ define(function() {
 		},
 		showMessage: function(msg) {
 			if(msg instanceof Array) {
-				for(m in msg) {
-					this.showMessage(m);
+				for(i in msg) {
+					this.showMessage(msg[i]);
 				}
 				return;
 			}
