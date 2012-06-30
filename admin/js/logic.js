@@ -190,5 +190,16 @@ define(function() {
 		var password = $password.attr('value');
 		obj.setState(state, password);
 	})
+	$.ajax({
+		'url': '/api/state',
+		'type': 'GET',
+		'success': function(state) {
+			if(state == "active") {
+				$activate.attr('checked', 'checked');
+			} else {
+				$activate.attr('checked', false);
+			}
+		}
+	})
 	return obj;
 });

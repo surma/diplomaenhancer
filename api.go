@@ -33,7 +33,8 @@ func serveAPI(addr string) {
 	apirouter := r.PathPrefix("/api").Subrouter()
 	apirouter.Path("/").Methods("GET").HandlerFunc(apiListHandler)
 	apirouter.Path("/").Methods("POST").HandlerFunc(updateWrapper(apiAddHandler))
-	apirouter.Path("/state").Methods("POST").HandlerFunc(authenticationWrapper(updateWrapper(apiStateHandler)))
+	apirouter.Path("/state").Methods("POST").HandlerFunc(authenticationWrapper(updateWrapper(apiSetStateHandler)))
+	apirouter.Path("/state").Methods("GET").HandlerFunc(apiGetStateHandler)
 	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("GET").HandlerFunc(apiListSingleHandler)
 	apirouter.Path("/{uuid:[0-9a-f-]+}").Methods("DELETE").HandlerFunc(authenticationWrapper(updateWrapper(apiDeleteSingleHandler)))
 
@@ -101,7 +102,7 @@ func apiDeleteSingleHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func apiStateHandler(w http.ResponseWriter, r *http.Request) {
+func apiSetStateHandler(w http.ResponseWriter, r *http.Request) {
 	line, _, e := bufio.NewReader(r.Body).ReadLine()
 	if conditionalFailf(w, e != nil, http.StatusBadRequest, "State: Received invalid request: %s", e) {
 		return
@@ -118,6 +119,14 @@ func apiStateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func apiGetStateHandler(w http.ResponseWriter, r *http.Request) {
+	if active {
+		w.Write([]byte("active"))
+	} else {
+		w.Write([]byte("inactive"))
+	}
 }
 
 func authenticationWrapper(h http.HandlerFunc) http.HandlerFunc {
