@@ -1,9 +1,6 @@
 package main
 
-const (
-	HOSTFILE = "/etc/hosts"
-)
-
 var (
+	HOSTFILE  = "/etc/hosts"
 	FLUSH_CMD = []string{"dscacheutil", "-flushcache"}
 )

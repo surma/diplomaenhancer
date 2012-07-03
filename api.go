@@ -6,8 +6,8 @@ import (
 	"code.google.com/p/gorilla/mux"
 	"encoding/json"
 	"fmt"
-	"github.com/surma/gouuid"
 	"github.com/surma/goappdata"
+	"github.com/surma/gouuid"
 	"log"
 	"net/http"
 	"os"
@@ -147,7 +147,7 @@ func updateWrapper(h http.HandlerFunc) http.HandlerFunc {
 		newhostfile := make([]hostfile.Block, len(originalhostfile))
 		copy(newhostfile, originalhostfile)
 		if active {
-			block := hostfile.Block {
+			block := hostfile.Block{
 				Comment: []string{"DiplomaEnhancer:"},
 				Entries: make([]hostfile.Entry, 0, len(blocklist)),
 			}
@@ -164,6 +164,10 @@ func updateWrapper(h http.HandlerFunc) http.HandlerFunc {
 		e = writeHostfile(hostfile.Hostfile(newhostfile))
 		if e != nil {
 			log.Fatalf("Could not write host file: %s")
+		}
+		if FLUSH_CMD == nil {
+			log.Printf("DNS cache flushing not implemented on this OS")
+			return
 		}
 		e = exec.Command(FLUSH_CMD[0], FLUSH_CMD[1:]...).Start()
 		if e != nil {

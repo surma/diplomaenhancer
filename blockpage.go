@@ -3,8 +3,8 @@ package main
 import (
 	"code.google.com/p/gorilla/mux"
 	"fmt"
-	"net/http"
 	"log"
+	"net/http"
 )
 
 func serveBlockpage() {
